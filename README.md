@@ -17,4 +17,4 @@
 [![](https://visitcount.itsvg.in/api?id=Purabnigam123&icon=0&color=0)](https://visitcount.itsvg.in)
 
 
-![snake gif](https://github.com/YOUR_USERNAME/YOUR_USERNAME/blob/output/github-snake-dark.svg)
+![snake gif](https://github.com/Purabnigam123/Purabnigam123/blob/output/github-snake-dark.svg)
