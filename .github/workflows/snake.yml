@@ -2,16 +2,59 @@ name: Generate Snake Animation
 
 on:
   schedule:
-    - cron: "0 */12 * * *" # runs every 12 hours
+    - cron: "0 * * * *"   # Runs every hour
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      
+      - uses: actions/checkout@v4
+
+      - name: Decide whether to generate
+        id: decide
+        run: |
+          TODAY=$(date -u +%F)
+
+          COUNT=0
+          if [ -f .commit_log ]; then
+            LAST_DATE=$(cut -d' ' -f1 .commit_log)
+            LAST_COUNT=$(cut -d' ' -f2 .commit_log)
+
+            if [ "$LAST_DATE" = "$TODAY" ]; then
+              COUNT=$LAST_COUNT
+            fi
+          fi
+
+          echo "Current count: $COUNT"
+
+          # Stop after 5 commits
+          if [ "$COUNT" -ge 5 ]; then
+            echo "run=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          HOUR=$(date -u +%H)
+
+          # Force one commit at midnight UTC if none yet
+          if [ "$COUNT" -eq 0 ] && [ "$HOUR" -eq 0 ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Random chance (~30%)
+          if [ $((RANDOM % 100)) -lt 30 ]; then
+            echo "run=true" >> $GITHUB_OUTPUT
+          else
+            echo "run=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Generate Snake
+        if: steps.decide.outputs.run == 'true'
         uses: Platane/snk@v3
         with:
           github_user_name: ${{ github.repository_owner }}
@@ -20,10 +63,28 @@ jobs:
             dist/github-contribution-grid-snake-dark.svg?palette=github-dark
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          
-      - name: Push to GitHub
+
+      - name: Update commit counter
+        if: steps.decide.outputs.run == 'true'
+        run: |
+          TODAY=$(date -u +%F)
+
+          COUNT=0
+          if [ -f .commit_log ]; then
+            LAST_DATE=$(cut -d' ' -f1 .commit_log)
+            LAST_COUNT=$(cut -d' ' -f2 .commit_log)
+
+            if [ "$LAST_DATE" = "$TODAY" ]; then
+              COUNT=$LAST_COUNT
+            fi
+          fi
+
+          COUNT=$((COUNT+1))
+          echo "$TODAY $COUNT" > .commit_log
+
+      - name: Commit changes
+        if: steps.decide.outputs.run == 'true'
         uses: EndBug/add-and-commit@v9
         with:
-          branch: main
-          message: 'Generate Contribution Snake'
-          
+          add: "."
+          message: "Generate Contribution Snake"
